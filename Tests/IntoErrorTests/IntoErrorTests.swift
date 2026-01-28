@@ -19,9 +19,6 @@ enum AppError {
     case unknown(Error)
 }
 
-// Generate postfix ^ operator for AppError
-#intoError(AppError.self)
-
 // MARK: - Test Helpers
 
 func throwsNetworkError() throws(NetworkError) -> String {

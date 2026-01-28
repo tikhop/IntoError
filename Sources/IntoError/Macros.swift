@@ -2,6 +2,7 @@
 ///
 /// This macro inspects your enum cases and generates:
 /// - `Error` conformance
+/// - Postfix `^` operator for error conversion
 /// - `ErrorConvertible` conformance (enables `.catching {}`)
 /// - Typed `init(from:)` for each wrapped error type
 /// - Fallback `init(converting:)` with type-matching switch
@@ -17,12 +18,8 @@
 /// }
 ///
 /// func fetchData() throws(DataError) -> Data {
-///     let data = try DataError.catching {
-///         try URLSession.shared.data(from: url)
-///     }
-///     let model = try DataError.catching {
-///         try JSONDecoder().decode(Model.self, from: data)
-///     }
+///     let data = try URLSession.shared.data(from: url)^
+///     let model = try JSONDecoder().decode(Model.self, from: data)^
 ///     return model
 /// }
 /// ```
@@ -32,24 +29,5 @@
 /// - `DecodingError` → `.parse(_)`
 /// - Other errors → `.unknown(_)` (if a fallback `Error` case exists)
 @attached(extension, conformances: Error, ErrorConvertible, names: named(init(converting:)), named(init(from:)))
+@attached(peer, names: named(^))
 public macro IntoError() = #externalMacro(module: "IntoErrorMacros", type: "IntoErrorMacro")
-
-/// Generates a postfix `^` operator for the specified error type.
-///
-/// Call this macro at file scope after defining your `@IntoError` enum:
-///
-/// ```swift
-/// @IntoError
-/// enum AppError {
-///     case network(URLError)
-///     case unknown(Error)
-/// }
-///
-/// #intoError(AppError)
-///
-/// func fetch() throws(AppError) -> Data {
-///     try loadData()^  // converts errors to AppError
-/// }
-/// ```
-@freestanding(declaration, names: named(^))
-public macro intoError<E: ErrorConvertible>(_ errorType: E.Type) = #externalMacro(module: "IntoErrorMacros", type: "IntoErrorOperatorMacro")

@@ -34,6 +34,38 @@ extension IntoErrorMacro: ExtensionMacro {
     }
 }
 
+// MARK: - Peer Macro (generates postfix ^ operator)
+
+extension IntoErrorMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        guard let enumDecl = declaration.as(EnumDeclSyntax.self) else {
+            throw IntoErrorMacroError.notAnEnum
+        }
+
+        let enumName = enumDecl.name.trimmedDescription
+
+        let operatorDecl: DeclSyntax = """
+        postfix func ^<T>(
+            _ expression: @autoclosure () throws -> T
+        ) throws(\(raw: enumName)) -> T {
+            do {
+                return try expression()
+            } catch let error as \(raw: enumName) {
+                throw error
+            } catch {
+                throw \(raw: enumName)(converting: error)
+            }
+        }
+        """
+
+        return [operatorDecl]
+    }
+}
+
 // MARK: - Helpers
 
 struct ErrorCase {
@@ -111,56 +143,15 @@ func generateConvertingInit(cases: [ErrorCase], enumName: String) -> String {
     """
 }
 
-// MARK: - Freestanding Operator Macro
-
-public struct IntoErrorOperatorMacro: DeclarationMacro {
-    public static func expansion(
-        of node: some FreestandingMacroExpansionSyntax,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        guard let argument = node.arguments.first?.expression else {
-            throw IntoErrorMacroError.missingArgument
-        }
-
-        // Extract the type name from the argument (e.g., "AppError.self" -> "AppError")
-        let typeName: String
-        if let memberAccess = argument.as(MemberAccessExprSyntax.self),
-           let base = memberAccess.base {
-            typeName = base.trimmedDescription
-        } else {
-            typeName = argument.trimmedDescription
-        }
-
-        let operatorDecl: DeclSyntax = """
-        postfix func ^<T>(
-            _ expression: @autoclosure () throws -> T
-        ) throws(\(raw: typeName)) -> T {
-            do {
-                return try expression()
-            } catch let error as \(raw: typeName) {
-                throw error
-            } catch {
-                throw \(raw: typeName)(converting: error)
-            }
-        }
-        """
-
-        return [operatorDecl]
-    }
-}
-
 // MARK: - Errors
 
 enum IntoErrorMacroError: Error, CustomStringConvertible {
     case notAnEnum
-    case missingArgument
 
     var description: String {
         switch self {
         case .notAnEnum:
             return "@IntoError can only be applied to enums"
-        case .missingArgument:
-            return "#intoError requires an error type argument"
         }
     }
 }
