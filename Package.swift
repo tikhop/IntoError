@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 
-import PackageDescription
 import CompilerPluginSupport
+import PackageDescription
 
 let package = Package(
     name: "IntoError",
@@ -35,6 +35,13 @@ let package = Package(
         .testTarget(
             name: "IntoErrorTests",
             dependencies: ["IntoError"]
+        ),
+        .testTarget(
+            name: "IntoErrorMacroTests",
+            dependencies: [
+                "IntoErrorMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ]
         ),
     ]
 )
