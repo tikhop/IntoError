@@ -1,20 +1,20 @@
+// MARK: - @IntoError
+
 /// Generates error conversion infrastructure for an enum.
 ///
-/// This macro inspects your enum cases and generates:
+/// Generates:
 /// - `Error` conformance
-/// - Postfix `^` operator for error conversion
-/// - `ErrorConvertible` conformance (enables `.catching {}`)
+/// - `ErrorConvertible` conformance
+/// - Postfix `^` operator for sync error conversion
 /// - Typed `init(from:)` for each wrapped error type
-/// - Fallback `init(converting:)` with type-matching switch
-///
-/// ## Example
+/// - `init(converting:)` with type-matching switch
+/// - Fallback `case unknown(any Error)` if not declared
 ///
 /// ```swift
 /// @IntoError
 /// enum DataError {
 ///     case network(URLError)
 ///     case parse(DecodingError)
-///     case unknown(Error)  // fallback case
 /// }
 ///
 /// func fetchData() throws(DataError) -> Data {
@@ -23,11 +23,35 @@
 ///     return model
 /// }
 /// ```
-///
-/// Errors are automatically matched to the correct case:
-/// - `URLError` → `.network(_)`
-/// - `DecodingError` → `.parse(_)`
-/// - Other errors → `.unknown(_)` (if a fallback `Error` case exists)
+@attached(member, names: named(unknown))
 @attached(extension, conformances: Error, ErrorConvertible, names: named(init(converting:)), named(init(from:)))
 @attached(peer, names: named(^))
 public macro IntoError() = #externalMacro(module: "IntoErrorMacros", type: "IntoErrorMacro")
+
+// MARK: - @Err for Functions
+
+/// Wraps a function body in do-catch for automatic error conversion.
+/// Works with both sync and async functions.
+/// Use when `^` operator doesn't work (async) or you prefer wrapping the whole function.
+///
+/// With typed throws (type inferred):
+/// ```swift
+/// @Err
+/// func fetchData() async throws(DataError) -> Data {
+///     try await networkCall()
+/// }
+/// ```
+@attached(body)
+public macro Err() = #externalMacro(module: "IntoErrorMacros", type: "ErrMacro")
+
+/// Wraps a function body to convert errors to the specified type.
+/// Use when function has untyped throws.
+///
+/// ```swift
+/// @Err(AppError.self)
+/// func fetchData() async throws -> Data {
+///     try await asyncFetch()
+/// }
+/// ```
+@attached(body)
+public macro Err<E: ErrorConvertible>(_ errorType: E.Type) = #externalMacro(module: "IntoErrorMacros", type: "ErrMacro")

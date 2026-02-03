@@ -5,5 +5,6 @@ import SwiftSyntaxMacros
 struct IntoErrorPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         IntoErrorMacro.self,
+        ErrMacro.self,
     ]
 }
